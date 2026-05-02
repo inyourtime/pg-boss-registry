@@ -16,6 +16,7 @@ export {
   setupPgBoss,
 } from './setup.js'
 export type {
+  PgBossDefinedQueueRegistry,
   PgBossQueueConfig,
   PgBossQueueDefinition,
   PgBossQueueMap,
