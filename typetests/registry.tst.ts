@@ -115,12 +115,10 @@ test('queue registry workers bind queue names and payload types', () => {
   queues.worker('email/send', {
     name: 'invalid-payload-worker',
     async handler(jobs) {
-      // @ts-expect-error Property 'olderThanDays' does not exist on type 'EmailJob'.
-      jobs[0]?.data.olderThanDays
+      expect(jobs[0]!.data).type.not.toHaveProperty('olderThanDays')
     },
     onError(_error, jobs) {
-      // @ts-expect-error Property 'olderThanDays' does not exist on type 'EmailJob'.
-      jobs[0]?.data.olderThanDays
+      expect(jobs[0]!.data).type.not.toHaveProperty('olderThanDays')
     },
   })
 
@@ -155,13 +153,12 @@ test('plain schedules preserve payload types', () => {
     name: 'email/send',
     cron: '0 8 * * *',
     data: {
-      // @ts-expect-error Type 'number' is not assignable to type 'string'.
       userId: 123,
     },
-  } satisfies PgBossScheduleDefinition<EmailJob>
+  }
 
   expect(emailSchedule.data.userId).type.toBe<string>()
-  expect(invalidEmailSchedule.name).type.toBe<string>()
+  expect(invalidEmailSchedule).type.not.toBeAssignableTo<PgBossScheduleDefinition<EmailJob>>()
 })
 
 test('setup options carry framework context into registry worker factories', () => {
@@ -214,8 +211,7 @@ test('queue registry can carry worker factory context type', () => {
     }),
   ).type.toBeAssignableTo<Promise<{ boss: PgBoss }>>()
 
-  setupPgBoss(boss, {
-    // @ts-expect-error No overload matches this call.
+  expect(setupPgBoss).type.not.toBeCallableWith(boss, {
     context: {},
     queueRegistry: queues,
     workers: [worker],
@@ -296,20 +292,16 @@ test('asTypedPgBoss wraps send variants and insert with typed payloads', () => {
   >()
   expect(typedBoss.insert('heartbeat', [{}])).type.toBe<Promise<string[] | null>>()
 
-  // @ts-expect-error Argument of type '"missing"' is not assignable to parameter
-  typedBoss.send('missing', { userId: 'user_123' })
-
-  // @ts-expect-error Type 'number' is not assignable to type 'string'.
-  typedBoss.send('email/send', { userId: 123 })
-
-  // @ts-expect-error Object literal may only specify known properties, and 'userId' does not exist
-  typedBoss.send('cleanup', { userId: 'user_123' })
-
-  // @ts-expect-error Type '"xml"' is not assignable to type '"csv" | "pdf"'.
-  typedBoss.sendAfter('reports', { reportId: 'r_1', format: 'xml' }, null, 30)
-
-  // @ts-expect-error Property 'data' is missing
-  typedBoss.insert('email/send', [{}])
+  expect(typedBoss.send).type.not.toBeCallableWith('missing', { userId: 'user_123' })
+  expect(typedBoss.send).type.not.toBeCallableWith('email/send', { userId: 123 })
+  expect(typedBoss.send).type.not.toBeCallableWith('cleanup', { userId: 'user_123' })
+  expect(typedBoss.sendAfter).type.not.toBeCallableWith(
+    'reports',
+    { reportId: 'r_1', format: 'xml' },
+    null,
+    30,
+  )
+  expect(typedBoss.insert).type.not.toBeCallableWith('email/send', [{}])
 })
 
 test('asTypedPgBoss wraps fetch, find, getJobById, and work with typed job data', () => {
@@ -342,12 +334,10 @@ test('asTypedPgBoss wraps fetch, find, getJobById, and work with typed job data'
     }),
   ).type.toBe<Promise<string>>()
 
-  // @ts-expect-error Argument of type '"missing"' is not assignable to parameter
-  typedBoss.fetch('missing')
+  expect(typedBoss.fetch).type.not.toBeCallableWith('missing')
 
   typedBoss.work('email/send', async (jobs) => {
-    // @ts-expect-error Property 'olderThanDays' does not exist on type 'EmailJob'.
-    jobs[0]?.data.olderThanDays
+    expect(jobs[0]!.data).type.not.toHaveProperty('olderThanDays')
   })
 })
 
@@ -366,11 +356,8 @@ test('asTypedPgBoss wraps job state commands with typed queue names', () => {
   >()
   expect(typedBoss.touch('reports', jobIds)).type.toBe<ReturnType<PgBoss['touch']>>()
 
-  // @ts-expect-error Argument of type '"missing"' is not assignable to parameter
-  typedBoss.cancel('missing', jobId)
-
-  // @ts-expect-error Argument of type '"missing"' is not assignable to parameter
-  typedBoss.complete('missing', jobId)
+  expect(typedBoss.cancel).type.not.toBeCallableWith('missing', jobId)
+  expect(typedBoss.complete).type.not.toBeCallableWith('missing', jobId)
 })
 
 test('asTypedPgBoss wraps queue management APIs with typed queue names', () => {
@@ -394,11 +381,8 @@ test('asTypedPgBoss wraps queue management APIs with typed queue names', () => {
   expect(typedBoss.deleteAllJobs()).type.toBe<ReturnType<PgBoss['deleteAllJobs']>>()
   expect(typedBoss.deleteAllJobs('cleanup')).type.toBe<ReturnType<PgBoss['deleteAllJobs']>>()
 
-  // @ts-expect-error Argument of type '"missing"' is not assignable to parameter
-  typedBoss.createQueue('missing')
-
-  // @ts-expect-error Type '"missing"' is not assignable
-  typedBoss.getQueues(['email/send', 'missing'])
+  expect(typedBoss.createQueue).type.not.toBeCallableWith('missing')
+  expect(typedBoss.getQueues).type.not.toBeCallableWith(['email/send', 'missing'])
 })
 
 test('asTypedPgBoss wraps schedules and spies with typed queue names and payloads', () => {
@@ -416,12 +400,9 @@ test('asTypedPgBoss wraps schedules and spies with typed queue names and payload
   expect(typedBoss.getSchedules('reports')).type.toBe<ReturnType<PgBoss['getSchedules']>>()
   expect(typedBoss.getSpy('email/send')).type.toBe<JobSpyInterface<EmailJob>>()
 
-  // @ts-expect-error Type 'number' is not assignable to type 'string'.
-  typedBoss.schedule('email/send', '0 8 * * *', { userId: 123 })
-
-  // @ts-expect-error Argument of type '"missing"' is not assignable to parameter
-  typedBoss.unschedule('missing')
-
-  // @ts-expect-error Argument of type '"missing"' is not assignable to parameter
-  typedBoss.getSpy('missing')
+  expect(typedBoss.schedule).type.not.toBeCallableWith('email/send', '0 8 * * *', {
+    userId: 123,
+  })
+  expect(typedBoss.unschedule).type.not.toBeCallableWith('missing')
+  expect(typedBoss.getSpy).type.not.toBeCallableWith('missing')
 })
