@@ -180,10 +180,22 @@ export async function closePgBossWorkers(
   }
 }
 
+function assertPgBossWorkerFactoryContext<Context>(options: PgBossRegistrySetupOptions<Context>) {
+  const hasWorkerFactory = options.workers?.some((worker) => typeof worker === 'function')
+
+  if (!hasWorkerFactory || Object.hasOwn(options, 'context')) {
+    return
+  }
+
+  throw new Error('setupPgBoss requires options.context when workers include factory functions')
+}
+
 export async function setupPgBoss<Context = unknown>(
   boss: PgBoss,
   options: PgBossRegistrySetupOptions<Context> = {},
 ) {
+  assertPgBossWorkerFactoryContext(options)
+
   const start = options.start ?? false
   const context = options.context as Context
 

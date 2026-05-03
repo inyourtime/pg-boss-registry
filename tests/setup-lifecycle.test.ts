@@ -67,6 +67,30 @@ test('setupPgBoss can register nothing without owning start or stop', async (t) 
   )
 })
 
+test('setupPgBoss requires context for worker factories', async () => {
+  const boss = new PgBoss({
+    connectionString,
+    schema: createSchemaName(),
+  })
+  const queues = definePgBossQueues({
+    email: queue<{ userId: string }>({ create: true }),
+  })
+  const worker = queues.worker('email', (app: { log(message: string): void }) => ({
+    name: 'email-worker',
+    async handler(jobs) {
+      app.log(`processing ${jobs.length} jobs`)
+    },
+  }))
+
+  await assert.rejects(
+    () =>
+      setupPgBoss(boss, {
+        workers: [worker],
+      }),
+    /setupPgBoss requires options\.context when workers include factory functions/,
+  )
+})
+
 test('setupPgBoss does not start an already managed boss when start is false', async (t) => {
   const boss = await createStartedBoss()
   const originalStart = boss.start
