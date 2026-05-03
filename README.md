@@ -5,7 +5,7 @@
 [![Checked with Biome](https://img.shields.io/badge/Checked_with-Biome-60a5fa?style=flat&logo=biome)](https://biomejs.dev)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat)](./LICENSE)
 
-Framework-agnostic typed queue registry and lifecycle helpers for
+Typed queue registry and lifecycle helpers for
 [`pg-boss`](https://github.com/timgit/pg-boss).
 
 The library keeps the real `PgBoss` instance visible. It adds typed helpers for
