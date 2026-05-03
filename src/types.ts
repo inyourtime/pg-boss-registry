@@ -41,6 +41,8 @@ export type PgBossQueueRegistry = Record<string, PgBossQueueConfig<any>>
 
 type RegistryQueueData<Definition> = Definition extends PgBossQueueConfig<infer Data> ? Data : never
 
+type IsUnknown<T> = unknown extends T ? ([keyof T] extends [never] ? true : false) : false
+
 type QueueData<
   Queues extends PgBossQueueMap,
   QueueName extends keyof Queues & string,
@@ -424,25 +426,44 @@ export type PgBossQueueRegistryWorkerFactory<
   ResData = any,
 > = (context: Context) => PgBossQueueRegistryWorker<Registry, QueueName, ResData>
 
-export type PgBossDefinedQueueRegistry<Registry extends PgBossQueueRegistry> = {
+type PgBossQueueRegistryWorkerBuilder<Registry extends PgBossQueueRegistry> = <
+  const QueueName extends keyof Registry & string,
+  ResData = any,
+>(
+  name: QueueName,
+  definition: PgBossQueueRegistryWorkerOptions<Registry, QueueName, ResData>,
+) => PgBossQueueRegistryWorker<Registry, QueueName, ResData>
+
+type PgBossQueueRegistryWorkerFactoryBuilder<Context, Registry extends PgBossQueueRegistry> = <
+  const QueueName extends keyof Registry & string,
+  ResData = any,
+>(
+  name: QueueName,
+  definition: (context: Context) => PgBossQueueRegistryWorkerOptions<Registry, QueueName, ResData>,
+) => PgBossQueueRegistryWorkerFactory<Context, Registry, QueueName, ResData>
+
+type PgBossQueueRegistryInferredWorkerFactoryBuilder<Registry extends PgBossQueueRegistry> = <
+  WorkerContext,
+  const QueueName extends keyof Registry & string,
+  ResData = any,
+>(
+  name: QueueName,
+  definition: (
+    context: WorkerContext,
+  ) => PgBossQueueRegistryWorkerOptions<Registry, QueueName, ResData>,
+) => PgBossQueueRegistryWorkerFactory<WorkerContext, Registry, QueueName, ResData>
+
+export type PgBossDefinedQueueRegistry<Registry extends PgBossQueueRegistry, Context = unknown> = {
   readonly queues: Registry
   readonly definitions: readonly PgBossQueueDefinition[]
-  worker: {
-    <const QueueName extends keyof Registry & string, ResData = any>(
-      name: QueueName,
-      definition: PgBossQueueRegistryWorkerOptions<Registry, QueueName, ResData>,
-    ): PgBossQueueRegistryWorker<Registry, QueueName, ResData>
-    <Context, const QueueName extends keyof Registry & string, ResData = any>(
-      name: QueueName,
-      definition: (
-        context: Context,
-      ) => PgBossQueueRegistryWorkerOptions<Registry, QueueName, ResData>,
-    ): PgBossQueueRegistryWorkerFactory<Context, Registry, QueueName, ResData>
-  }
+  worker: PgBossQueueRegistryWorkerBuilder<Registry> &
+    (IsUnknown<Context> extends true
+      ? PgBossQueueRegistryInferredWorkerFactoryBuilder<Registry>
+      : PgBossQueueRegistryWorkerFactoryBuilder<Context, Registry>)
 }
 
 export type PgBossQueuesFromRegistry<Registry> =
-  Registry extends PgBossDefinedQueueRegistry<infer Definitions>
+  Registry extends PgBossDefinedQueueRegistry<infer Definitions, any>
     ? {
         [QueueName in keyof Definitions & string]: RegistryQueueData<Definitions[QueueName]>
       }
@@ -477,7 +498,7 @@ export type PgBossRegistrySetupOptions<Context = unknown> = {
   /**
    * Typed queue registry used to create queues and derive worker/send payload types.
    */
-  queueRegistry?: PgBossDefinedQueueRegistry<any>
+  queueRegistry?: Pick<PgBossDefinedQueueRegistry<any, any>, 'definitions'>
   /**
    * Register workers after queue registry definitions.
    */

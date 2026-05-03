@@ -7,6 +7,7 @@ import {
   type PgBossRegistrySetupOptions,
   type PgBossScheduleDefinition,
   queue,
+  setupPgBoss,
   type TypedPgBoss,
 } from '../src/index.js'
 
@@ -184,6 +185,70 @@ test('setup options carry framework context into registry worker factories', () 
   } satisfies PgBossRegistrySetupOptions<AppContext>
 
   expect(setupOptions).type.toBeAssignableTo<PgBossRegistrySetupOptions<AppContext>>()
+})
+
+test('queue registry can carry worker factory context type', () => {
+  const queues = definePgBossQueues<AppContext>()({
+    'email/send': queue<EmailJob>({ create: true }),
+  })
+  const worker = queues.worker('email/send', (app) => {
+    expect(app).type.toBe<AppContext>()
+
+    return {
+      name: 'email-worker',
+      async handler(jobs) {
+        expect(jobs[0]?.data.userId).type.toBe<string | undefined>()
+      },
+    }
+  })
+
+  expect(worker(context).queue).type.toBe<'email/send'>()
+  expect(worker).type.toBeAssignableTo<
+    NonNullable<PgBossRegistrySetupOptions<AppContext>['workers']>[number]
+  >()
+})
+
+test('setup options infer inline worker factory context from context option', () => {
+  const queues = definePgBossQueues({
+    'email/send': queue<EmailJob>({ create: true }),
+  })
+  const setupOptions = {
+    context,
+    queueRegistry: queues,
+    workers: [
+      queues.worker('email/send', (app) => {
+        expect(app).type.toBe<AppContext>()
+
+        return {
+          name: 'email-worker',
+          async handler(jobs) {
+            expect(jobs[0]?.data.userId).type.toBe<string | undefined>()
+          },
+        }
+      }),
+    ],
+  } satisfies PgBossRegistrySetupOptions<AppContext>
+
+  expect(setupOptions).type.toBeAssignableTo<PgBossRegistrySetupOptions<AppContext>>()
+
+  expect(
+    setupPgBoss(boss, {
+      context,
+      queueRegistry: queues,
+      workers: [
+        queues.worker('email/send', (app) => {
+          expect(app).type.toBe<AppContext>()
+
+          return {
+            name: 'email-worker',
+            async handler(jobs) {
+              expect(jobs[0]?.data.userId).type.toBe<string | undefined>()
+            },
+          }
+        }),
+      ],
+    }),
+  ).type.toBeAssignableTo<Promise<{ boss: PgBoss }>>()
 })
 
 test('asTypedPgBoss wraps send variants and insert with typed payloads', () => {

@@ -49,9 +49,10 @@ function applyQueueDefinition<Definition extends object>(
   }
 }
 
-export function definePgBossQueues<const Registry extends PgBossQueueRegistry>(
-  registry: Registry,
-): PgBossDefinedQueueRegistry<Registry> {
+function createPgBossQueueRegistry<
+  Context = unknown,
+  const Registry extends PgBossQueueRegistry = PgBossQueueRegistry,
+>(registry: Registry): PgBossDefinedQueueRegistry<Registry, Context> {
   const definitions = Object.entries(registry)
     .map(([name, definition]) => getQueueDefinition(name, definition))
     .filter((definition): definition is PgBossQueueDefinition => definition !== null)
@@ -66,7 +67,24 @@ export function definePgBossQueues<const Registry extends PgBossQueueRegistry>(
 
       return applyQueueDefinition(name, definition)
     },
-  } as unknown as PgBossDefinedQueueRegistry<Registry>
+  } as unknown as PgBossDefinedQueueRegistry<Registry, Context>
+}
+
+export function definePgBossQueues<Context>(): <const Registry extends PgBossQueueRegistry>(
+  registry: Registry,
+) => PgBossDefinedQueueRegistry<Registry, Context>
+export function definePgBossQueues<const Registry extends PgBossQueueRegistry>(
+  registry: Registry,
+): PgBossDefinedQueueRegistry<Registry>
+export function definePgBossQueues<Context, const Registry extends PgBossQueueRegistry>(
+  registry?: Registry,
+) {
+  if (registry === undefined) {
+    return <const Registry extends PgBossQueueRegistry>(registry: Registry) =>
+      createPgBossQueueRegistry<Context, Registry>(registry)
+  }
+
+  return createPgBossQueueRegistry(registry)
 }
 
 export function asTypedPgBoss<Queues extends PgBossQueueMap>(boss: PgBoss): TypedPgBoss<Queues> {

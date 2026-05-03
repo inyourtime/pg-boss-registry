@@ -80,7 +80,11 @@ Pass framework state through `context`. Worker factories receive the same
 context, but the registry itself stays independent from any framework.
 
 ```ts
-const worker = queues.worker('email/send', (app: AppContext) => ({
+const queues = definePgBossQueues<AppContext>()({
+  'email/send': queue<EmailJob>({ create: true }),
+})
+
+const worker = queues.worker('email/send', (app) => ({
   name: 'email-worker',
   async handler(jobs) {
     app.log.info({ count: jobs.length }, 'processing email jobs')
