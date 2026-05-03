@@ -473,6 +473,14 @@ export type PgBossQueuesFromRegistry<Registry> =
         }
       : never
 
+export type PgBossQueueRegistryContext<Registry> =
+  Registry extends PgBossDefinedQueueRegistry<any, infer Context> ? Context : unknown
+
+export type PgBossSetupContext<QueueRegistry, Context> =
+  IsUnknown<PgBossQueueRegistryContext<QueueRegistry>> extends true
+    ? Context
+    : PgBossQueueRegistryContext<QueueRegistry>
+
 export type PgBossScheduleDefinition<Data = object> = {
   data?: QueueDataForPgBoss<Data>
   enabled?: boolean

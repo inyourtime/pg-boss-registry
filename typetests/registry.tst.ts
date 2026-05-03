@@ -206,6 +206,20 @@ test('queue registry can carry worker factory context type', () => {
   expect(worker).type.toBeAssignableTo<
     NonNullable<PgBossRegistrySetupOptions<AppContext>['workers']>[number]
   >()
+  expect(
+    setupPgBoss(boss, {
+      context,
+      queueRegistry: queues,
+      workers: [worker],
+    }),
+  ).type.toBeAssignableTo<Promise<{ boss: PgBoss }>>()
+
+  setupPgBoss(boss, {
+    // @ts-expect-error No overload matches this call.
+    context: {},
+    queueRegistry: queues,
+    workers: [worker],
+  })
 })
 
 test('setup options infer inline worker factory context from context option', () => {

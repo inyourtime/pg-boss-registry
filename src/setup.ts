@@ -1,8 +1,10 @@
 import type { PgBoss } from 'pg-boss'
 import type {
+  PgBossDefinedQueueRegistry,
   PgBossQueueDefinition,
   PgBossRegistrySetupOptions,
   PgBossScheduleDefinition,
+  PgBossSetupContext,
   PgBossWorkerDefinition,
   PgBossWorkerRegistration,
 } from './types.js'
@@ -190,7 +192,32 @@ function assertPgBossWorkerFactoryContext<Context>(options: PgBossRegistrySetupO
   throw new Error('setupPgBoss requires options.context when workers include factory functions')
 }
 
+type PgBossSetupHandle = Awaited<ReturnType<typeof createPgBossSetup>>
+
+export function setupPgBoss<
+  QueueRegistry extends PgBossDefinedQueueRegistry<any, any>,
+  Context = unknown,
+>(
+  boss: PgBoss,
+  options: Omit<
+    PgBossRegistrySetupOptions<PgBossSetupContext<QueueRegistry, Context>>,
+    'queueRegistry'
+  > & {
+    queueRegistry: QueueRegistry
+  },
+): Promise<PgBossSetupHandle>
+export function setupPgBoss<Context = unknown>(
+  boss: PgBoss,
+  options?: PgBossRegistrySetupOptions<Context> & { queueRegistry?: never },
+): Promise<PgBossSetupHandle>
 export async function setupPgBoss<Context = unknown>(
+  boss: PgBoss,
+  options: PgBossRegistrySetupOptions<Context> = {},
+) {
+  return createPgBossSetup(boss, options)
+}
+
+async function createPgBossSetup<Context = unknown>(
   boss: PgBoss,
   options: PgBossRegistrySetupOptions<Context> = {},
 ) {
