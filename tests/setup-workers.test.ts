@@ -242,7 +242,6 @@ test('worker registration runs against postgres and close removes active workers
     name: 'metadata-worker',
     includeMetadata: true,
     options: {
-      includeMetadata: true,
       pollingIntervalSeconds: 0.5,
     },
     async handler(jobs) {

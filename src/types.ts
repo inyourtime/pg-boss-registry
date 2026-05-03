@@ -386,7 +386,7 @@ type PgBossWorkerBaseDefinition<ReqData = object, ResData = any> = {
        * after this hook so pg-boss can keep its retry/failure behavior.
        */
       onError?: PgBossWorkerWithMetadataErrorHandler<ReqData>
-      options?: WorkOptions & { includeMetadata: true }
+      options?: WorkOptions
     }
 )
 
