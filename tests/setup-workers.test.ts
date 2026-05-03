@@ -88,6 +88,124 @@ test('worker factories resolve with framework context', () => {
   assert.equal(resolvePgBossWorkerDefinition(context, workerFactory), worker)
 })
 
+test('worker onError handles thrown errors against postgres and preserves failure behavior', async (t) => {
+  const boss = await createStartedBoss()
+  t.after(async () => {
+    await boss.stop({ close: true })
+  })
+
+  const queues = definePgBossQueues({
+    'email/error': queue<EmailJob>({ create: true, options: { retryLimit: 0 } }),
+  })
+  const typedBoss = asTypedPgBoss<{
+    'email/error': EmailJob
+  }>(boss)
+  const handledJobs: { data: EmailJob; id: string }[] = []
+  let handledError: unknown
+
+  const worker = queues.worker('email/error', {
+    name: 'email-error-worker',
+    options: {
+      pollingIntervalSeconds: 0.5,
+    },
+    async handler() {
+      throw new Error('worker failed')
+    },
+    onError(error, jobs) {
+      handledError = error
+      for (const job of jobs) {
+        handledJobs.push({ data: job.data, id: job.id })
+      }
+    },
+  })
+
+  await registerPgBossQueues(boss, queues.definitions)
+  await registerPgBossWorker(boss, worker)
+
+  const jobId = await typedBoss.send('email/error', { userId: 'worker-user' })
+  assert.ok(jobId)
+
+  await waitFor(
+    () => handledJobs.some((job) => job.id === jobId),
+    'worker onError was not called for the failed postgres job',
+  )
+  await waitFor(
+    async () => (await typedBoss.getJobById('email/error', jobId))?.state === 'failed',
+    'failed worker job was not persisted as failed',
+  )
+
+  assert.equal(handledError instanceof Error, true)
+  assert.equal((handledError as Error).message, 'worker failed')
+  assert.deepEqual(handledJobs, [{ data: { userId: 'worker-user' }, id: jobId }])
+
+  const failedJob = await typedBoss.getJobById('email/error', jobId)
+  assert.equal(failedJob?.state, 'failed')
+})
+
+test('worker onError runs for postgres retry attempts', async (t) => {
+  const boss = await createStartedBoss()
+  t.after(async () => {
+    await boss.stop({ close: true })
+  })
+
+  const queues = definePgBossQueues({
+    'email/retry-error': queue<EmailJob>({
+      create: true,
+      options: {
+        retryDelay: 0,
+        retryLimit: 1,
+      },
+    }),
+  })
+  const typedBoss = asTypedPgBoss<{
+    'email/retry-error': EmailJob
+  }>(boss)
+  const handledJobs: { attempt: number; data: EmailJob; id: string }[] = []
+  let attempts = 0
+
+  const worker = queues.worker('email/retry-error', {
+    name: 'email-retry-error-worker',
+    options: {
+      pollingIntervalSeconds: 0.5,
+    },
+    async handler() {
+      attempts += 1
+      throw new Error(`worker failed attempt ${attempts}`)
+    },
+    onError(_error, jobs) {
+      for (const job of jobs) {
+        handledJobs.push({ attempt: attempts, data: job.data, id: job.id })
+      }
+    },
+  })
+
+  await registerPgBossQueues(boss, queues.definitions)
+  await registerPgBossWorker(boss, worker)
+
+  const jobId = await typedBoss.send('email/retry-error', { userId: 'retry-user' })
+  assert.ok(jobId)
+
+  await waitFor(
+    () => handledJobs.filter((job) => job.id === jobId).length === 2,
+    'worker onError was not called for the initial attempt and retry',
+  )
+  await waitFor(
+    async () => (await typedBoss.getJobById('email/retry-error', jobId))?.state === 'failed',
+    'retried worker job was not persisted as failed',
+  )
+
+  assert.equal(attempts, 2)
+  assert.deepEqual(handledJobs, [
+    { attempt: 1, data: { userId: 'retry-user' }, id: jobId },
+    { attempt: 2, data: { userId: 'retry-user' }, id: jobId },
+  ])
+
+  const failedJob = await typedBoss.getJobById('email/retry-error', jobId)
+  assert.equal(failedJob?.retryLimit, 1)
+  assert.equal(failedJob?.retryCount, 1)
+  assert.equal(failedJob?.state, 'failed')
+})
+
 test('worker registration runs against postgres and close removes active workers', async (t) => {
   const boss = await createStartedBoss()
   t.after(async () => {

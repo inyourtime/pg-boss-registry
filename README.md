@@ -98,6 +98,27 @@ const setup = await setupPgBoss(boss, {
 app.onClose(setup.close)
 ```
 
+## Worker Error Handling
+
+Workers can declare `onError` to observe handler failures with the original
+error and the same jobs passed to `handler`. The original error is rethrown
+after `onError` finishes, so pg-boss still applies its normal retry and failure
+behavior.
+
+```ts
+const worker = queues.worker('email/send', {
+  name: 'email-worker',
+  async handler(jobs) {
+    for (const job of jobs) {
+      await sendEmail(job.data.userId)
+    }
+  },
+  onError(error, jobs) {
+    console.error({ error, jobIds: jobs.map((job) => job.id) }, 'email worker failed')
+  },
+})
+```
+
 ## Typed pg-boss API
 
 `asTypedPgBoss<Queues>(boss)` returns the same pg-boss object with queue-related

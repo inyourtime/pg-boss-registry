@@ -39,9 +39,9 @@ export async function registerPgBossQueues(
   }
 }
 
-export async function registerPgBossSchedule(
+export async function registerPgBossSchedule<Data = object>(
   boss: Pick<PgBoss, 'schedule'>,
-  schedule: PgBossScheduleDefinition,
+  schedule: PgBossScheduleDefinition<Data>,
 ) {
   if (schedule.enabled === false) {
     return
@@ -59,7 +59,7 @@ export async function registerPgBossSchedule(
 
 export async function registerPgBossSchedules(
   boss: Pick<PgBoss, 'schedule'>,
-  schedules: readonly PgBossScheduleDefinition[] = [],
+  schedules: readonly PgBossScheduleDefinition<any>[] = [],
 ) {
   for (const schedule of schedules) {
     await registerPgBossSchedule(boss, schedule)
@@ -109,9 +109,27 @@ export function resolvePgBossWorkerDefinition<Context, ReqData = object, ResData
   return typeof worker === 'function' ? worker(context) : worker
 }
 
-export async function registerPgBossWorker(
+function wrapPgBossWorkerHandler<Jobs, ResData>(
+  handler: (jobs: Jobs) => Promise<ResData>,
+  onError?: (error: unknown, jobs: Jobs) => void | Promise<void>,
+): (jobs: Jobs) => Promise<ResData> {
+  if (!onError) {
+    return handler
+  }
+
+  return async (jobs) => {
+    try {
+      return await handler(jobs)
+    } catch (error) {
+      await onError(error, jobs)
+      throw error
+    }
+  }
+}
+
+export async function registerPgBossWorker<ReqData = object, ResData = any>(
   boss: Pick<PgBoss, 'schedule' | 'work'>,
-  worker: PgBossWorkerDefinition,
+  worker: PgBossWorkerDefinition<ReqData, ResData>,
 ) {
   if (worker.enabled === false) {
     return
@@ -128,17 +146,21 @@ export async function registerPgBossWorker(
     await boss.work(
       queue,
       { ...(worker.options ?? {}), includeMetadata: true as const },
-      worker.handler,
+      wrapPgBossWorkerHandler(worker.handler, worker.onError),
     )
     return
   }
 
-  await boss.work(queue, worker.options ?? {}, worker.handler)
+  await boss.work(
+    queue,
+    worker.options ?? {},
+    wrapPgBossWorkerHandler(worker.handler, worker.onError),
+  )
 }
 
 export async function registerPgBossWorkers(
   boss: Pick<PgBoss, 'schedule' | 'work'>,
-  workers: readonly PgBossWorkerDefinition[] = [],
+  workers: readonly PgBossWorkerDefinition<any>[] = [],
 ) {
   for (const worker of workers) {
     await registerPgBossWorker(boss, worker)

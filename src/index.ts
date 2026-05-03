@@ -42,8 +42,10 @@ export type {
   PgBossTypedWorkWithMetadata,
   PgBossWorkerDefinition,
   PgBossWorkerDefinitionFactory,
+  PgBossWorkerErrorHandler,
   PgBossWorkerRegistration,
   PgBossWorkerScheduleDefinition,
+  PgBossWorkerWithMetadataErrorHandler,
   TypedPgBoss,
   TypedPgBossQueueName,
 } from './types.js'

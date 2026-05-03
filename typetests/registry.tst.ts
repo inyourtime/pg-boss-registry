@@ -67,12 +67,17 @@ test('queue registry workers bind queue names and payload types', () => {
     'email/send': queue<EmailJob>({ create: true }),
     cleanup: queue<CleanupJob>({ create: true }),
     heartbeat: queue<undefined>({ create: true }),
+    reports: queue<ReportJob>({ create: true }),
   })
 
   const workers = [
     queues.worker('email/send', {
       name: 'email-worker',
       async handler(jobs) {
+        expect(jobs[0]?.data.userId).type.toBe<string | undefined>()
+      },
+      async onError(error, jobs) {
+        expect(error).type.toBe<unknown>()
         expect(jobs[0]?.data.userId).type.toBe<string | undefined>()
       },
     }),
@@ -88,6 +93,10 @@ test('queue registry workers bind queue names and payload types', () => {
           },
         },
         async handler(jobs) {
+          expect(jobs[0]?.data.olderThanDays).type.toBe<number | undefined>()
+        },
+        onError(error, jobs) {
+          expect(error).type.toBe<unknown>()
           expect(jobs[0]?.data.olderThanDays).type.toBe<number | undefined>()
         },
       }
@@ -107,6 +116,27 @@ test('queue registry workers bind queue names and payload types', () => {
     async handler(jobs) {
       // @ts-expect-error Property 'olderThanDays' does not exist on type 'EmailJob'.
       jobs[0]?.data.olderThanDays
+    },
+    onError(_error, jobs) {
+      // @ts-expect-error Property 'olderThanDays' does not exist on type 'EmailJob'.
+      jobs[0]?.data.olderThanDays
+    },
+  })
+
+  queues.worker('reports', {
+    name: 'metadata-report-worker',
+    includeMetadata: true,
+    async handler(jobs) {
+      expect(jobs[0]?.data.format).type.toBe<'csv' | 'pdf' | undefined>()
+      expect(jobs[0]?.state).type.toBe<
+        'created' | 'retry' | 'active' | 'completed' | 'cancelled' | 'failed' | undefined
+      >()
+    },
+    onError(_error, jobs) {
+      expect(jobs[0]?.data.reportId).type.toBe<string | undefined>()
+      expect(jobs[0]?.state).type.toBe<
+        'created' | 'retry' | 'active' | 'completed' | 'cancelled' | 'failed' | undefined
+      >()
     },
   })
 })

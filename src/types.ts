@@ -343,6 +343,16 @@ export type PgBossWorkerScheduleDefinition<Data = object> =
       tz?: string
     }
 
+export type PgBossWorkerErrorHandler<ReqData = object> = (
+  error: unknown,
+  jobs: Job<QueueDataForPgBoss<ReqData>>[],
+) => void | Promise<void>
+
+export type PgBossWorkerWithMetadataErrorHandler<ReqData = object> = (
+  error: unknown,
+  jobs: JobWithMetadata<QueueDataForPgBoss<ReqData>>[],
+) => void | Promise<void>
+
 type PgBossWorkerBaseDefinition<ReqData = object, ResData = any> = {
   enabled?: boolean
   /**
@@ -359,11 +369,21 @@ type PgBossWorkerBaseDefinition<ReqData = object, ResData = any> = {
   | {
       includeMetadata?: false
       handler: WorkHandler<QueueDataForPgBoss<ReqData>, ResData>
+      /**
+       * Called when the worker handler throws. The original error is rethrown
+       * after this hook so pg-boss can keep its retry/failure behavior.
+       */
+      onError?: PgBossWorkerErrorHandler<ReqData>
       options?: WorkOptions
     }
   | {
       includeMetadata: true
       handler: WorkWithMetadataHandler<QueueDataForPgBoss<ReqData>, ResData>
+      /**
+       * Called when the worker handler throws. The original error is rethrown
+       * after this hook so pg-boss can keep its retry/failure behavior.
+       */
+      onError?: PgBossWorkerWithMetadataErrorHandler<ReqData>
       options?: WorkOptions & { includeMetadata: true }
     }
 )
