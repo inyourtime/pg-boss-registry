@@ -129,6 +129,29 @@ function wrapPgBossWorkerHandler<Jobs, ResData>(
   }
 }
 
+function warnWhenWorkerOptionsIncludeMetadata<ReqData, ResData>(
+  worker: PgBossWorkerDefinition<ReqData, ResData>,
+) {
+  if (!Object.hasOwn(worker.options ?? {}, 'includeMetadata')) {
+    return
+  }
+
+  console.warn(
+    'pg-boss-registry: worker.options.includeMetadata is ignored; use worker.includeMetadata instead.',
+  )
+}
+
+function getPgBossWorkerOptions<ReqData, ResData>(
+  worker: PgBossWorkerDefinition<ReqData, ResData>,
+) {
+  warnWhenWorkerOptionsIncludeMetadata(worker)
+
+  return {
+    ...(worker.options ?? {}),
+    includeMetadata: worker.includeMetadata === true,
+  }
+}
+
 export async function registerPgBossWorker<ReqData = object, ResData = any>(
   boss: Pick<PgBoss, 'schedule' | 'work'>,
   worker: PgBossWorkerDefinition<ReqData, ResData>,
@@ -147,7 +170,7 @@ export async function registerPgBossWorker<ReqData = object, ResData = any>(
   if (worker.includeMetadata) {
     await boss.work(
       queue,
-      { ...(worker.options ?? {}), includeMetadata: true as const },
+      { ...getPgBossWorkerOptions(worker), includeMetadata: true as const },
       wrapPgBossWorkerHandler(worker.handler, worker.onError),
     )
     return
@@ -155,7 +178,7 @@ export async function registerPgBossWorker<ReqData = object, ResData = any>(
 
   await boss.work(
     queue,
-    worker.options ?? {},
+    getPgBossWorkerOptions(worker),
     wrapPgBossWorkerHandler(worker.handler, worker.onError),
   )
 }

@@ -1,4 +1,11 @@
-import type { Job, JobSpyInterface, JobWithMetadata, PgBoss, SendOptions } from 'pg-boss'
+import type {
+  Job,
+  JobSpyInterface,
+  JobWithMetadata,
+  PgBoss,
+  SendOptions,
+  WorkOptions,
+} from 'pg-boss'
 import { expect, test } from 'tstyche'
 import {
   asTypedPgBoss,
@@ -136,6 +143,86 @@ test('queue registry workers bind queue names and payload types', () => {
       expect(jobs[0]?.state).type.toBe<
         'created' | 'retry' | 'active' | 'completed' | 'cancelled' | 'failed' | undefined
       >()
+    },
+  })
+})
+
+test('worker metadata is inferred from the top-level includeMetadata option', () => {
+  const queues = definePgBossQueues({
+    'email/send': queue<EmailJob>({ create: true }),
+    cleanup: queue<CleanupJob>({ create: true }),
+    heartbeat: queue<undefined>({ create: true }),
+    reports: queue<ReportJob>({ create: true }),
+  })
+
+  const sharedOptionsWithMetadata: WorkOptions = {
+    includeMetadata: true,
+    pollingIntervalSeconds: 5,
+  }
+  const sharedOptionsWithoutMetadata: WorkOptions = {
+    pollingIntervalSeconds: 5,
+  }
+
+  const metadataWorkerWithNestedOption = queues.worker('reports', {
+    name: 'metadata-report-worker',
+    includeMetadata: true,
+    options: sharedOptionsWithMetadata,
+    async handler(jobs) {
+      expect(jobs[0]?.data.format).type.toBe<'csv' | 'pdf' | undefined>()
+      expect(jobs[0]?.state).type.toBe<
+        'created' | 'retry' | 'active' | 'completed' | 'cancelled' | 'failed' | undefined
+      >()
+    },
+    onError(_error, jobs) {
+      expect(jobs[0]?.data.reportId).type.toBe<string | undefined>()
+      expect(jobs[0]?.state).type.toBe<
+        'created' | 'retry' | 'active' | 'completed' | 'cancelled' | 'failed' | undefined
+      >()
+    },
+  })
+
+  const metadataWorkerWithPlainOptions = queues.worker('reports', {
+    name: 'metadata-report-worker',
+    includeMetadata: true,
+    options: sharedOptionsWithoutMetadata,
+    async handler(jobs) {
+      expect(jobs[0]?.data.format).type.toBe<'csv' | 'pdf' | undefined>()
+      expect(jobs[0]?.state).type.toBe<
+        'created' | 'retry' | 'active' | 'completed' | 'cancelled' | 'failed' | undefined
+      >()
+    },
+    onError(_error, jobs) {
+      expect(jobs[0]?.data.reportId).type.toBe<string | undefined>()
+      expect(jobs[0]?.state).type.toBe<
+        'created' | 'retry' | 'active' | 'completed' | 'cancelled' | 'failed' | undefined
+      >()
+    },
+  })
+
+  expect(metadataWorkerWithNestedOption.queue).type.toBe<'reports'>()
+  expect(metadataWorkerWithPlainOptions.queue).type.toBe<'reports'>()
+  expect(metadataWorkerWithNestedOption.options?.pollingIntervalSeconds).type.toBe<
+    number | undefined
+  >()
+  expect(metadataWorkerWithPlainOptions.options?.pollingIntervalSeconds).type.toBe<
+    number | undefined
+  >()
+
+  queues.worker('reports', {
+    name: 'plain-report-worker',
+    options: sharedOptionsWithMetadata,
+    async handler(jobs) {
+      expect(jobs[0]?.data.format).type.toBe<'csv' | 'pdf' | undefined>()
+      expect(jobs[0]!).type.not.toHaveProperty('state')
+    },
+  })
+
+  queues.worker('reports', {
+    name: 'plain-report-worker',
+    options: sharedOptionsWithoutMetadata,
+    async handler(jobs) {
+      expect(jobs[0]?.data.format).type.toBe<'csv' | 'pdf' | undefined>()
+      expect(jobs[0]!).type.not.toHaveProperty('state')
     },
   })
 })
