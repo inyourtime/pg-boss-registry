@@ -1,6 +1,6 @@
 {
   "name": "pg-boss-registry",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Framework-agnostic typed queue registry and lifecycle helpers for pg-boss.",
   "type": "module",
   "main": "./dist/index.js",
