@@ -1,5 +1,10 @@
 # pg-boss-registry
 
+[![CI](https://github.com/inyourtime/pg-boss-registry/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/inyourtime/pg-boss-registry/actions/workflows/ci.yml)
+[![NPM version](https://img.shields.io/npm/v/pg-boss-registry.svg?style=flat)](https://www.npmjs.com/package/pg-boss-registry)
+[![Checked with Biome](https://img.shields.io/badge/Checked_with-Biome-60a5fa?style=flat&logo=biome)](https://biomejs.dev)
+[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat)](./LICENSE)
+
 Framework-agnostic typed queue registry and lifecycle helpers for
 [`pg-boss`](https://github.com/timgit/pg-boss).
 
