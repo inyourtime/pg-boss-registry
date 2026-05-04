@@ -284,7 +284,7 @@ Options:
 | `enabled` | `boolean` | When `false`, registration and `offWork` are skipped. Defaults to enabled. |
 | `includeMetadata` | `boolean` | When `true`, the handler receives `JobWithMetadata<Data>[]`; otherwise it receives `Job<Data>[]`. |
 | `handler` | `WorkHandler` or `WorkWithMetadataHandler` | Worker handler passed to `boss.work`. Payload data is typed from the queue. |
-| `onError` | `(error, jobs) => void | Promise<void>` | Called when `handler` throws. The original error is rethrown after this hook. |
+| `onError` | `(error, jobs) => void \| Promise<void>` | Called when `handler` throws. The original error is rethrown after this hook. |
 | `options` | `WorkOptions` | Options passed to `boss.work`. Put `includeMetadata` on the worker itself, not inside `options`. |
 | `schedule` | `PgBossWorkerScheduleDefinition<Data>` | Optional schedule created before registering the worker. |
 | `offWorkOnClose` | `boolean` | When `false`, `setup.close()` will not call `boss.offWork` for this worker. Defaults to `true`. |
