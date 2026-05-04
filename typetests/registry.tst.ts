@@ -13,6 +13,7 @@ import {
   type PgBossQueuesFromRegistry,
   type PgBossRegistrySetupOptions,
   type PgBossScheduleDefinition,
+  type PgBossWorkerDefinition,
   queue,
   setupPgBoss,
   type TypedPgBoss,
@@ -296,12 +297,41 @@ test('queue registry can carry worker factory context type', () => {
       queueRegistry: queues,
       workers: [worker],
     }),
-  ).type.toBeAssignableTo<Promise<{ boss: PgBoss }>>()
+  ).type.toBeAssignableTo<Promise<{ boss: TypedPgBoss<PgBossQueuesFromRegistry<typeof queues>> }>>()
 
   expect(setupPgBoss).type.not.toBeCallableWith(boss, {
     context: {},
     queueRegistry: queues,
     workers: [worker],
+  })
+})
+
+test('setupPgBoss returns a typed boss from the queue registry', () => {
+  const queues = definePgBossQueues({
+    'email/send': queue<EmailJob>({ create: true }),
+    cleanup: queue<CleanupJob>({ create: true }),
+    heartbeat: queue<undefined>({ create: true }),
+  })
+
+  setupPgBoss(boss, { queueRegistry: queues }).then((setup) => {
+    expect(setup.boss).type.toBe<TypedPgBoss<PgBossQueuesFromRegistry<typeof queues>>>()
+    expect(setup.boss.send('email/send', { userId: 'user_123' })).type.toBe<
+      Promise<string | null>
+    >()
+    expect(setup.boss.send('heartbeat')).type.toBe<Promise<string | null>>()
+    expect(setup.workers).type.toBe<PgBossWorkerDefinition<any>[]>()
+    expect(setup.close()).type.toBe<Promise<void>>()
+
+    expect(setup.boss.send).type.not.toBeCallableWith('missing')
+    expect(setup.boss.send).type.not.toBeCallableWith('email/send', { userId: 123 })
+    expect(setup.boss.send).type.not.toBeCallableWith('cleanup', { userId: 'user_123' })
+    expect(setup.close).type.not.toBeCallableWith({ force: true })
+  })
+
+  setupPgBoss(boss).then((setup) => {
+    expect(setup.boss).type.toBe<PgBoss>()
+    expect(setup.workers).type.toBe<PgBossWorkerDefinition<any>[]>()
+    expect(setup.close()).type.toBe<Promise<void>>()
   })
 })
 
@@ -345,7 +375,7 @@ test('setup options infer inline worker factory context from context option', ()
         }),
       ],
     }),
-  ).type.toBeAssignableTo<Promise<{ boss: PgBoss }>>()
+  ).type.toBeAssignableTo<Promise<{ boss: TypedPgBoss<PgBossQueuesFromRegistry<typeof queues>> }>>()
 })
 
 test('asTypedPgBoss wraps send variants and insert with typed payloads', () => {
