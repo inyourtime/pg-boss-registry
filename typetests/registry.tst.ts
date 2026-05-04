@@ -13,6 +13,7 @@ import {
   type PgBossQueuesFromRegistry,
   type PgBossRegistrySetupOptions,
   type PgBossScheduleDefinition,
+  type PgBossWorkerDefinition,
   queue,
   setupPgBoss,
   type TypedPgBoss,
@@ -318,14 +319,19 @@ test('setupPgBoss returns a typed boss from the queue registry', () => {
       Promise<string | null>
     >()
     expect(setup.boss.send('heartbeat')).type.toBe<Promise<string | null>>()
+    expect(setup.workers).type.toBe<PgBossWorkerDefinition<any>[]>()
+    expect(setup.close()).type.toBe<Promise<void>>()
 
     expect(setup.boss.send).type.not.toBeCallableWith('missing')
     expect(setup.boss.send).type.not.toBeCallableWith('email/send', { userId: 123 })
     expect(setup.boss.send).type.not.toBeCallableWith('cleanup', { userId: 'user_123' })
+    expect(setup.close).type.not.toBeCallableWith({ force: true })
   })
 
   setupPgBoss(boss).then((setup) => {
     expect(setup.boss).type.toBe<PgBoss>()
+    expect(setup.workers).type.toBe<PgBossWorkerDefinition<any>[]>()
+    expect(setup.close()).type.toBe<Promise<void>>()
   })
 })
 
