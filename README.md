@@ -134,12 +134,15 @@ const worker = queues.worker('email/send', {
 methods narrowed to the known registry keys and payload types. The underlying
 runtime object is not wrapped.
 
+When `setupPgBoss` receives a typed `queueRegistry`, the returned `setup.boss`
+is already typed from that registry.
+
 Typed methods include `send`, `sendAfter`, `sendThrottled`, `sendDebounced`,
 `insert`, `fetch`, `work`, job commands, queue commands, queue getters,
 schedules, and spies.
 
 ```ts
-const typedBoss = asTypedPgBoss<Queues>(boss)
+const typedBoss = setup.boss
 
 await typedBoss.send('email/send', { userId: 'user_123' })
 await typedBoss.fetch('email/send')
