@@ -24,9 +24,11 @@ npm install pg-boss-registry pg-boss
 ```ts
 import { PgBoss } from 'pg-boss'
 import {
+  asTypedPgBoss,
   definePgBossQueues,
   queue,
   setupPgBoss,
+  type PgBossQueuesFromRegistry,
 } from 'pg-boss-registry'
 
 type EmailJob = {
@@ -38,6 +40,9 @@ type EmailJob = {
 const queues = definePgBossQueues({
   'email/send': queue<EmailJob>({ create: true }),
 })
+
+// You can also derive the queue map for asTypedPgBoss.
+type Queues = PgBossQueuesFromRegistry<typeof queues>
 
 // You keep ownership of the real PgBoss instance and its connection settings.
 const boss = new PgBoss(process.env.POSTGRES_URL!)
@@ -71,6 +76,14 @@ const setup = await setupPgBoss(boss, {
 // setup.boss is the same PgBoss instance, typed from the queue registry.
 await setup.boss.send('email/send', {
   userId: 'user_123',
+})
+
+// If setup happens elsewhere, asTypedPgBoss gives the same instance a typed
+// queue API without wrapping it.
+const typedBoss = asTypedPgBoss<Queues>(boss)
+
+await typedBoss.send('email/send', {
+  userId: 'user_456',
 })
 ```
 
