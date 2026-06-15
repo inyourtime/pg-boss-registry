@@ -41,7 +41,7 @@ jobs:
         node-version:
           - 22
           - 24
-          - latest
+          - 26
 
     services:
       postgres:

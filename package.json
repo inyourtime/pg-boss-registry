@@ -68,5 +68,8 @@
     "tstyche": "^7.1.0",
     "tsx": "^4.21.0",
     "typescript": "^6.0.2"
+  },
+  "overrides": {
+    "yargs": "^18.0.0"
   }
 }
